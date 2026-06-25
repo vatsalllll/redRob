@@ -1,0 +1,17 @@
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+{embeddings,tests}/
+embeddings/candidate_embeddings.npy
+embeddings/embeddings.zip
+embeddings/candidate_ids.txt
+candidates.jsonl
+submission.csv
+.DS_Store
+*.zip
+__MACOSX/
+dataset/
+plan/
+hf-space/
+generate_embeddings_colab.ipynb

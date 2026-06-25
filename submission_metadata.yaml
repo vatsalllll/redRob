@@ -1,0 +1,81 @@
+# Redrob Hackathon — Submission Metadata
+
+# ============================================================================
+# Team identity
+# ============================================================================
+team_name: "TODO: your team name"
+
+primary_contact:
+  name: "TODO: your full name"
+  email: "TODO: your email"
+  phone: "TODO: +91-XXXXXXXXXX"
+
+team_members:
+  - name: "TODO: your full name"
+    email: "TODO: your email"
+    role: "ML Engineer"
+
+# ============================================================================
+# Code and reproducibility
+# ============================================================================
+github_repo: "https://github.com/TODO/YOUR_REPO"
+# TODO: push your code to GitHub and fill in the URL
+
+sandbox_link: "https://huggingface.co/spaces/VatsalHF30/redRob"
+# Live demo Space for the ranker
+
+reproduce_command: "python rank.py --candidates ./candidates.jsonl --out ./submission.csv"
+
+# ============================================================================
+# Compute environment
+# ============================================================================
+compute:
+  platform: "MacBook Air (Apple Silicon, M-series)"
+  cpu_cores: 8
+  ram_gb: 16
+  python_version: "3.12.12"
+  os: "macOS"
+  uses_gpu_for_inference: false
+  has_network_during_ranking: false
+  pre_computation_required: true
+  pre_computation_time_minutes: 3
+  pre_computation_platform: "HuggingFace Space (L4 GPU) — https://huggingface.co/spaces/VatsalHF30/redRob"
+
+# ============================================================================
+# AI tools declaration
+# ============================================================================
+ai_tools_used:
+  - "Claude"
+  - "OpenCode (Sisyphus orchestrator)"
+
+ai_usage_summary: |
+  Used Claude/OpenCode (Sisyphus) for implementation and code review. No candidate
+  data was fed to any LLM. The scoring engine, embeddings generation, and ranking
+  pipeline are original work built using the plan provided.
+
+# ============================================================================
+# Approach summary
+# ============================================================================
+methodology_summary: |
+  Hybrid multi-signal ranker: 6-component base score + behavioral multiplier.
+  C1 (30%): career-narrative cosine similarity via all-MiniLM-L6-v2 embeddings.
+  C2 (20%): production AI experience — rule-based title+career+description match,
+  with hard penalty for consulting-only careers.
+  C3 (15%): experience seniority, 5-9 yr sweet spot.
+  C4 (15%): skill depth with endorsement × duration trust multiplier.
+  C5 (10%): location/logistics (Pune/Noida preferred).
+  C6 (10%): education tier + GitHub activity.
+  Multiplied by behavioral score [0.25, 1.20] from 23 Redrob platform signals.
+  Anti-trap measures: honeypot detection, LangChain-tourist penalty, career
+  plausibility guard that caps C4 when C2 < 0.25 (catches keyword stuffers like
+  "Marketing Manager with 9 Pinecone skills"). Runtime: 57s for 100K on CPU.
+
+# ============================================================================
+# Declarations
+# ============================================================================
+declarations:
+  read_submission_spec: true
+  code_is_original_work: true
+  no_collusion: true
+  honeypot_check_done: true
+  reproduction_tested: true
