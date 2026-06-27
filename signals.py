@@ -139,11 +139,11 @@ def compute_behavioral_multiplier(candidate: dict) -> float:
         + 0.20 * credibility_score
     )
 
-    # Map 0-1 raw score to multiplier range [0.25, 1.20]
-    # 0.0 raw → 0.25 multiplier (ghost, unverified, no response)
-    # 0.5 raw → ~0.70 (average)
-    # 1.0 raw → 1.20 (perfect engagement)
-    multiplier = 0.25 + raw * 0.95
+    # Map 0-1 raw score to multiplier range [0.40, 1.10]
+    # 0.0 raw → 0.40 multiplier (ghost, unverified, no response)
+    # 0.5 raw → ~0.75 (average)
+    # 1.0 raw → 1.10 (perfect engagement)
+    multiplier = 0.40 + raw * 0.70
 
     return float(round(multiplier, 4))
 
@@ -151,4 +151,4 @@ def compute_behavioral_multiplier(candidate: dict) -> float:
 def compute_final_score(base_score: float, candidate: dict) -> float:
     mult = compute_behavioral_multiplier(candidate)
     final = base_score * mult
-    return float(round(min(1.0, final), 6))
+    return float(round(final, 6))
