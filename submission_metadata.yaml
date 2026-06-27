@@ -21,8 +21,9 @@ team_members:
 github_repo: "https://github.com/TODO/YOUR_REPO"
 # TODO: push your code to GitHub and fill in the URL
 
-sandbox_link: "https://huggingface.co/spaces/VatsalHF30/redRob"
-# Live demo Space for the ranker
+# TODO: Deploy app.py (Streamlit sandbox) to Streamlit Cloud and update this URL.
+# The current HuggingFace Space (below) is the embedding generator, not the ranker demo.
+sandbox_link: "https://redrob-ranker-sandbox.streamlit.app"
 
 reproduce_command: "python rank.py --candidates ./candidates.jsonl --out ./submission.csv"
 
@@ -65,10 +66,12 @@ methodology_summary: |
   C4 (15%): skill depth with endorsement × duration trust multiplier.
   C5 (10%): location/logistics (Pune/Noida preferred).
   C6 (10%): education tier + GitHub activity.
-  Multiplied by behavioral score [0.25, 1.20] from 23 Redrob platform signals.
-  Anti-trap measures: honeypot detection, LangChain-tourist penalty, career
-  plausibility guard that caps C4 when C2 < 0.25 (catches keyword stuffers like
-  "Marketing Manager with 9 Pinecone skills"). Runtime: 57s for 100K on CPU.
+  Multiplied by behavioral score [0.40, 1.10] from 23 Redrob platform signals.
+  Anti-trap measures: 7-check honeypot detection (impossible duration, expert-skill
+  abuse, skill duration overflow, future dates, salary inversion, empty profiles,
+  overlapping roles), LangChain-tourist penalty, career plausibility guard that
+  caps C4 when C2 < 0.25 (catches keyword stuffers like "Marketing Manager with 9
+  Pinecone skills"). Runtime: ~30s for 100K on CPU.
 
 # ============================================================================
 # Declarations

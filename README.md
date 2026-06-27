@@ -33,13 +33,29 @@ Stage 4: Sort + top-100 + per-candidate reasoning
 - **Skill trust multiplier** — Skills with 0 endorsements AND 0 duration_months get near-zero credit
 - **Career plausibility guard** — If C2 < 0.25 (no real AI career), C4 is capped proportionally. This is the key anti-trap for "Graphic Designer with Pinecone skills"
 - **Behavioral ghost penalty** — Candidates inactive 6+ months with <20% response rate get ≤40% of base
-- **Honeypot detection** — Impossible career duration math or 3+ expert skills with 0 months/endorsements → score 0
+- **Honeypot detection** — Impossible career duration math, 3+ expert skills with 0 months/endorsements, future dates, salary min > max, empty profiles, overlapping roles → score 0
 - **LangChain tourist detection** — All AI experience post-2022 and <24 months → 0.7× recency penalty
 - **Plain-language AI engineers win** — Semantic embedding captures "built recommendation system" even without buzzwords
 
 ---
 
+## Why this approach
+
+Three problems a naive system gets wrong:
+
+1. **Keyword stuffing** — A "Marketing Manager" who pastes 9 AI tool names will outrank a real ML engineer under pure embedding similarity. The 6-component base score gates C4 (skill depth) by C2 (real production AI evidence), so fake skill claims collapse when career narrative shows zero AI work.
+
+2. **Behavioral ghosts** — Perfect-on-paper candidates who haven't logged in for 6 months and have 5% response rates are, for hiring purposes, unreachable. The behavioral multiplier (range [0.4, 1.1]) captures this without overriding skill match.
+
+3. **Consulting lifers** — Full careers at TCS/Wipro/Infosys/Accenture score 0.15× on C2. Candidates at these companies with prior product experience are NOT penalized (real AI work at Razorpay before moving to Wipro still counts).
+
+The hybrid (semantic + rule-based) approach beats both pure embedding and pure rules: embeddings capture "built hybrid retrieval with BM25 and dense embeddings for legal contracts" even without buzzwords, while rules enforce the JD's explicit priorities (5–9 yrs, Pune/Noida, production AI).
+
+---
+
 ## Quick start
+
+> **Prerequisites:** The ranking step (`rank.py`) requires pre-computed embeddings in `embeddings/`. If you don't have them, run Step 2 first (use Option A for speed). `rank.py` will fail with a clear error if embeddings are missing.
 
 ### 1. Setup
 
@@ -81,12 +97,31 @@ python embeddings/generate_jd_emb.py --candidates ./candidates.jsonl --out ./emb
 python rank.py --candidates ./candidates.jsonl --out ./submission.csv
 ```
 
-This is the reproducible command. Runs in **under 60 seconds on CPU** with 16 GB RAM. No network calls.
+This is the reproducible command. Runs in **under 60 seconds on CPU** with 16 GB RAM. No network calls. The script also runs a honeypot audit on the top 100 and prints a pass/fail summary.
+
+**Options:**
+- `--embeddings-dir PATH` — Directory with pre-computed `.npy` files (default: `embeddings/`)
+- `--top-n N` — Number of candidates to rank (default: 100)
+- `--verbose` — Print progress every 10K candidates (default: on)
 
 ### 4. Validate
 
 ```bash
 python validate_submission.py ./submission.csv
+```
+
+Expected output: `Submission is valid.`
+
+### 5. Example output
+
+`submission.csv` (100 rows, header + 100 data rows):
+
+```csv
+candidate_id,rank,score,reasoning
+CAND_0077337,1,0.9334,"Strong fit: Staff Machine Learning Engineer with 7.0 yrs total experience at Paytm; hands-on AI/ML work as Senior NLP Engineer at Glance (44 months); credible AI skills: Semantic Search, QLoRA, pgvector. platform assessments: Semantic Search=63; India-based (Kochi, Kerala); high recruiter engagement (95% response rate); active GitHub (68/100)."
+CAND_0046525,2,0.9307,"Strong fit: Senior Machine Learning Engineer with 6.1 yrs total experience at Genpact AI; ..."
+...
+CAND_0066376,100,0.7030,"Weak fit: Applied ML Engineer with 5.7 yrs total experience at Dream11; ..."
 ```
 
 ### 5. Run tests
@@ -95,7 +130,7 @@ python validate_submission.py ./submission.csv
 pytest tests/ -v
 ```
 
-17 unit + integration tests covering all scoring components, anti-trap measures, and edge cases.
+30 unit + integration tests covering all scoring components, anti-trap measures, edge cases, and boundary conditions.
 
 ### 6. Launch sandbox UI (optional)
 
