@@ -118,11 +118,21 @@ def generate_reasoning(candidate: dict, rank: int, final_score: float, scores: d
     concerns = []
 
     if days_inactive > 90:
-        concerns.append(f"inactive {days_inactive} days — reachability uncertain")
+        inactive_phrasings = [
+            f"inactive {days_inactive} days — reachability uncertain",
+            f"last active {days_inactive}d ago — response time risk",
+            f"{days_inactive}-day inactivity gap may delay engagement",
+        ]
+        concerns.append(inactive_phrasings[days_inactive % len(inactive_phrasings)])
     if rr < 0.20:
         concerns.append(f"low response rate ({rr:.0%}) is a risk")
     if notice > 90:
-        concerns.append(f"long notice period ({notice} days)")
+        notice_phrasings = [
+            f"long notice period ({notice} days)",
+            f"{notice}-day notice — timing risk for immediate start",
+            f"extended notice ({notice}d) may delay onboarding",
+        ]
+        concerns.append(notice_phrasings[notice % len(notice_phrasings)])
 
     consulting_career = all(
         r.get("company", "").lower().strip() in CONSULTING_FIRMS

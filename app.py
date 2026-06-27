@@ -151,8 +151,8 @@ else:
         | C5 Location & Logistics | 10% | City match, notice period, relocation willingness |
         | C6 Education + GitHub | 10% | Institution tier, field of study, GitHub activity |
         
-        The base score is then multiplied by a **behavioral multiplier** (0.25–1.20) derived 
-        from Redrob platform signals: recruiter response rate, days since last active, 
+        The base score is then multiplied by a **behavioral multiplier** (0.40–1.10) derived
+        from Redrob platform signals: recruiter response rate, days since last active,
         open-to-work flag, interview completion rate, and profile completeness.
         
         **Anti-trap measures:** Consulting-only careers get 0.2× penalty. 
