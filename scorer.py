@@ -399,10 +399,11 @@ def is_honeypot(candidate: dict) -> bool:
     yoe = profile.get("years_of_experience", 0)
     career = candidate.get("career_history", [])
     skills = candidate.get("skills", [])
+    redrob = candidate.get("redrob_signals", {})
 
     # Check 1: total career months vs stated years_of_experience
     total_career_months = sum(r.get("duration_months", 0) for r in career)
-    if total_career_months > (yoe * 12 + 30):  # 30-month tolerance
+    if total_career_months > (yoe * 12 + 30):
         return True
 
     # Check 2: expert skill with 0 duration AND 0 endorsements (multiple)
@@ -415,8 +416,44 @@ def is_honeypot(candidate: dict) -> bool:
     if suspicious_skills >= 3:
         return True
 
-    # Check 3: years at a company vs company founding (rough heuristic only)
-    # Can't verify founding date without external data — skip for safety
+    # Check 3: skill duration exceeds stated years_of_experience
+    max_skill_months = max((s.get("duration_months", 0) for s in skills), default=0)
+    if max_skill_months > (yoe * 12 + 6):
+        return True
+
+    # Check 4: start_date in the future
+    from datetime import date
+    today = date.today()
+    for r in career:
+        start = _parse_date(r.get("start_date"))
+        if start and start > today:
+            return True
+        end = _parse_date(r.get("end_date"))
+        if end and end > today:
+            return True
+
+    # Check 5: salary range with min > max
+    sal = redrob.get("expected_salary_range_inr_lpa", {})
+    if isinstance(sal, dict) and sal.get("min", 0) > sal.get("max", 0):
+        return True
+
+    # Check 6: profile completeness < 5 (effectively empty)
+    completeness = redrob.get("profile_completeness_score", 50)
+    if completeness < 5:
+        return True
+
+    # Check 7: overlapping roles at different companies (same time period)
+    if len(career) >= 2:
+        intervals = []
+        for r in career:
+            s = _parse_date(r.get("start_date"))
+            e = _parse_date(r.get("end_date")) or today
+            if s:
+                intervals.append((s, e, r.get("company", "")))
+        intervals.sort()
+        for i in range(len(intervals) - 1):
+            if intervals[i][1] > intervals[i + 1][0]:
+                return True
 
     return False
 
