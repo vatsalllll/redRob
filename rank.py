@@ -131,11 +131,11 @@ def rank_candidates(
     if verbose:
         print(f"Scoring done in {time.time()-t0:.1f}s")
 
-    # Sort descending by rounded score (what gets written to CSV),
-    # then by candidate_id ascending for tie-breaking
     for r in results:
         r["rounded_score"] = round(r["final_score"], 4)
-    results.sort(key=lambda x: (-x["rounded_score"], x["candidate_id"]))
+    # Triple-key sort: unrounded score first (preserves discrimination),
+    # then rounded score (CSV consistency), then candidate_id for deterministic tie-break.
+    results.sort(key=lambda x: (-x["final_score"], -x["rounded_score"], x["candidate_id"]))
 
     return results
 
@@ -220,12 +220,25 @@ def main():
     embeddings_available = all(os.path.exists(p) for p in [jd_emb_path, cand_emb_path, ids_path])
 
     if not embeddings_available:
-        print("WARNING: Precomputed embeddings not found. Running without semantic component.")
-        print(f"         Expected: {jd_emb_path}, {cand_emb_path}, {ids_path}")
-        print("         Run: python embeddings/generate_jd_emb.py --candidates <path>")
-        jd_emb = np.zeros(384)  # dummy
-        cand_emb = np.zeros((0, 384))
-        emb_ids = []
+        print("=" * 70)
+        print("ERROR: Precomputed embeddings not found.")
+        print(f"  Expected: {jd_emb_path}, {cand_emb_path}, {ids_path}")
+        print()
+        print("The ranking step requires embeddings generated offline.")
+        print("Choose one of these options:")
+        print()
+        print("  1. Local generation (slow, ~30 min on CPU):")
+        print(f"     python embeddings/generate_jd_emb.py --candidates {args.candidates} --out ./embeddings/")
+        print()
+        print("  2. HuggingFace Space (fast, ~2 min on GPU):")
+        print("     Deploy hf-space/ to a Space, upload candidates.jsonl,")
+        print("     download the zip, extract into ./embeddings/")
+        print("     See: https://huggingface.co/spaces/VatsalHF30/redRob")
+        print()
+        print("  3. Download pre-computed embeddings (if available):")
+        print("     Check the GitHub repo's Releases page.")
+        print("=" * 70)
+        sys.exit(1)
     else:
         print(f"Loading embeddings from {emb_dir}...")
         jd_emb, cand_emb, emb_ids = load_embeddings(emb_dir)
@@ -246,6 +259,23 @@ def main():
 
     # --- Validate ---
     validate_output(rows)
+
+    # --- Honeypot audit ---
+    from scorer import is_honeypot
+    cand_by_id = {item["candidate_id"]: item["candidate"] for item in ranked}
+    audit_top_n = min(100, len(rows))
+    honeypots_in_top = [
+        r["candidate_id"] for r in rows[:audit_top_n]
+        if is_honeypot(cand_by_id[r["candidate_id"]])
+    ]
+    honeypot_rate = len(honeypots_in_top) / audit_top_n * 100
+    print(f"\nHoneypot audit (top {audit_top_n}): {len(honeypots_in_top)} found ({honeypot_rate:.1f}%)")
+    if honeypots_in_top:
+        print(f"  WARNING: Honeypots in top {audit_top_n}: {honeypots_in_top}")
+        if honeypot_rate > 10.0:
+            print("  CRITICAL: Honeypot rate exceeds 10% — submission would be DISQUALIFIED at Stage 3")
+    else:
+        print(f"  PASS: No honeypots in top {audit_top_n} (well under 10% threshold)")
 
     # --- Write ---
     write_csv(rows, args.out)
