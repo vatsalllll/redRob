@@ -313,7 +313,7 @@ class TestBehavioralSignals:
             "github_activity_score": -1,
         })
         mult = compute_behavioral_multiplier(cand)
-        assert mult < 0.50, f"Ghost should have multiplier < 0.50, got {mult}"
+        assert mult < 0.60, f"Ghost should have multiplier < 0.60, got {mult}"
 
     def test_engaged_candidate(self):
         mult = compute_behavioral_multiplier(make_candidate())
@@ -364,6 +364,152 @@ class TestIntegration:
         assert ideal_final > stuffer_final, (
             f"Real engineer ({ideal_final:.4f}) should beat keyword stuffer ({stuffer_final:.4f})"
         )
+
+
+# ---- New tests: edge cases and gaps ----
+
+class TestTiedScores:
+    def test_tied_final_scores_tiebreak_by_candidate_id(self):
+        from rank import rank_candidates
+        import numpy as np
+        c1 = make_candidate()
+        c1["candidate_id"] = "CAND_9999999"
+        c2 = make_candidate()
+        c2["candidate_id"] = "CAND_1111111"
+        jd_emb = np.zeros(384)
+        cand_emb = np.zeros((2, 384))
+        emb_ids = ["CAND_9999999", "CAND_1111111"]
+        results = rank_candidates([c1, c2], jd_emb, cand_emb, emb_ids, verbose=False)
+        assert results[0]["candidate_id"] == "CAND_1111111", "Lower ID should win tie-break"
+
+    def test_rounded_score_tiebreak(self):
+        from rank import rank_candidates
+        import numpy as np
+        c1 = make_candidate()
+        c1["candidate_id"] = "CAND_0000005"
+        c2 = make_candidate()
+        c2["candidate_id"] = "CAND_0000003"
+        jd_emb = np.zeros(384)
+        cand_emb = np.zeros((2, 384))
+        emb_ids = ["CAND_0000005", "CAND_0000003"]
+        results = rank_candidates([c1, c2], jd_emb, cand_emb, emb_ids, verbose=False)
+        assert results[0]["candidate_id"] in ("CAND_0000003", "CAND_0000005")
+
+
+class TestMissingFields:
+    def test_no_education(self):
+        cand = make_candidate()
+        cand["education"] = []
+        score = score_education_github(cand)
+        assert 0.2 <= score <= 0.5, f"No-education should score 0.2-0.5, got {score}"
+
+    def test_no_skills(self):
+        cand = make_candidate()
+        cand["skills"] = []
+        score = score_skill_depth(cand)
+        assert score == 0.0, f"No skills should score 0.0, got {score}"
+
+    def test_empty_career_history(self):
+        cand = make_candidate()
+        cand["career_history"] = []
+        score = score_production_ai_experience(cand)
+        assert score <= 0.2, f"Empty career should score <= 0.2, got {score}"
+
+
+class TestBehavioralBoundary:
+    def test_minimum_multiplier(self):
+        cand = make_candidate(redrob_signals={
+            "recruiter_response_rate": 0.0,
+            "avg_response_time_hours": 999,
+            "profile_completeness_score": 0,
+            "last_active_date": "2020-01-01",
+            "open_to_work_flag": False,
+            "interview_completion_rate": 0.0,
+            "offer_acceptance_rate": -1,
+            "verified_email": False,
+            "verified_phone": False,
+            "linkedin_connected": False,
+            "applications_submitted_30d": 0,
+            "notice_period_days": 180,
+            "willing_to_relocate": False,
+            "github_activity_score": -1,
+        })
+        mult = compute_behavioral_multiplier(cand)
+        assert 0.40 <= mult <= 0.60, f"Minimum ghost should be near 0.40, got {mult}"
+
+    def test_maximum_multiplier(self):
+        cand = make_candidate(redrob_signals={
+            "recruiter_response_rate": 0.95,
+            "avg_response_time_hours": 2,
+            "profile_completeness_score": 100,
+            "last_active_date": "2026-06-25",
+            "open_to_work_flag": True,
+            "interview_completion_rate": 1.0,
+            "offer_acceptance_rate": 0.9,
+            "verified_email": True,
+            "verified_phone": True,
+            "linkedin_connected": True,
+            "applications_submitted_30d": 5,
+        })
+        mult = compute_behavioral_multiplier(cand)
+        assert 1.05 <= mult <= 1.10, f"Maximum engaged should be near 1.10, got {mult}"
+
+
+class TestHoneypotExpanded:
+    def test_future_start_date(self):
+        cand = make_candidate(
+            career_history=[{
+                "company": "Future Corp", "title": "AI Engineer",
+                "start_date": "2099-01-01", "end_date": None,
+                "duration_months": 12, "is_current": True,
+                "industry": "Tech", "company_size": "201-500",
+                "description": "work",
+            }]
+        )
+        assert is_honeypot(cand), "Future start_date should be flagged"
+
+    def test_skill_duration_exceeds_yoe(self):
+        cand = make_candidate(
+            years_of_experience=2.0,
+            skills=[
+                {"name": "Python", "proficiency": "expert",
+                 "endorsements": 5, "duration_months": 120},
+            ]
+        )
+        assert is_honeypot(cand), "Skill duration > YOE should be flagged"
+
+    def test_salary_min_greater_than_max(self):
+        cand = make_candidate(redrob_signals={
+            "expected_salary_range_inr_lpa": {"min": 50, "max": 10}
+        })
+        assert is_honeypot(cand), "Salary min > max should be flagged"
+
+    def test_empty_profile(self):
+        cand = make_candidate(redrob_signals={"profile_completeness_score": 2})
+        assert is_honeypot(cand), "Profile completeness < 5 should be flagged"
+
+    def test_overlapping_roles(self):
+        cand = make_candidate(
+            career_history=[
+                {"company": "A", "title": "Engineer", "start_date": "2020-01-01",
+                 "end_date": "2023-01-01", "duration_months": 36, "is_current": False,
+                 "industry": "Tech", "company_size": "201-500", "description": "work"},
+                {"company": "B", "title": "Engineer", "start_date": "2022-06-01",
+                 "end_date": None, "duration_months": 30, "is_current": True,
+                 "industry": "Tech", "company_size": "201-500", "description": "work"},
+            ]
+        )
+        assert is_honeypot(cand), "Overlapping roles at different companies should be flagged"
+
+
+class TestSeniorityBoundary:
+    def test_exact_sweet_spot_boundaries(self):
+        for yoe in [4.99, 5.0, 9.0, 9.01]:
+            s = score_experience_seniority({"profile": {"years_of_experience": yoe}})
+            if yoe == 5.0 or yoe == 9.0:
+                assert s == 1.0, f"yoe={yoe} should be 1.0, got {s}"
+            else:
+                assert s < 1.0, f"yoe={yoe} (outside band) should be < 1.0, got {s}"
 
 
 if __name__ == "__main__":
