@@ -18,12 +18,9 @@ team_members:
 # ============================================================================
 # Code and reproducibility
 # ============================================================================
-github_repo: "https://github.com/TODO/YOUR_REPO"
-# TODO: push your code to GitHub and fill in the URL
+github_repo: "https://github.com/vatsalllll/redRob"
 
-# TODO: Deploy app.py (Streamlit sandbox) to Streamlit Cloud and update this URL.
-# The current HuggingFace Space (below) is the embedding generator, not the ranker demo.
-sandbox_link: "https://redrob-ranker-sandbox.streamlit.app"
+sandbox_link: "https://redrob-ekgyqj4hdxt3nnhdts6k95.streamlit.app/"
 
 reproduce_command: "python rank.py --candidates ./candidates.jsonl --out ./submission.csv"
 
